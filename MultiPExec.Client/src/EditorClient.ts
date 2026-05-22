@@ -11,6 +11,7 @@ export class EditorClient {
 
     public onDocumentLoaded?: (nodes: CharNodeDto[]) => void;
     public onCharacterInserted?: (value: string, path: number[], authorId: string) => void;
+    public onCharacterRemoved?: (path: number[], charClientId: string) => void;
 
     constructor(private workspaceId: string, private clientId: string) {
 
@@ -29,6 +30,7 @@ export class EditorClient {
     private registerListeners() {
         this.connection.on("DocumentLoaded", (nodes: CharNodeDto[]) => this.onDocumentLoaded?.(nodes));
         this.connection.on("CharacterInserted", (val, path, authorId) => this.onCharacterInserted?.(val, path, authorId));
+        this.connection.on("CharacterRemoved", (path, charClientId) => this.onCharacterRemoved?.(path, charClientId));
     }
 
     public async connect() {
@@ -38,5 +40,9 @@ export class EditorClient {
 
     public async insert(value: string, path: number[]) {
         await this.connection.invoke("InsertCharacter", this.workspaceId, value, path, this.clientId);
+    }
+
+    public async remove(path: number[], charClientId: guid) {
+        await this.connection.invoke("RemoveCharacter", this.workspaceId, path, charClientId);
     }
 }

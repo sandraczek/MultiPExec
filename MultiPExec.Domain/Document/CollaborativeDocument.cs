@@ -7,6 +7,7 @@ public class CollaborativeDocument(Guid documentId)
     public Guid DocumentId { get; } = documentId;
     private readonly List<CharNode> _content = new(1024); //todo: change to B-TREE
     
+
     public void Insert(CharNode node)
     {
         var index = _content.BinarySearch(node, new CharNodeComparer());
@@ -19,11 +20,13 @@ public class CollaborativeDocument(Guid documentId)
         _content.Insert(index, node);
     }
 
-    public void Remove(FractionalPosition position)
+    public void Remove(FractionalPosition position, Guid charClientId)
     {
-        var dummyNode = new CharNode('\0', position, Guid.Empty);
+        var dummyNode = new CharNode('\0', position, charClientId);
         
         var index = _content.BinarySearch(dummyNode, new CharNodeComparer());
+
+        Console.WriteLine(index);
         
         if (index >= 0)
         {

@@ -23,12 +23,12 @@ public class WorkspaceManager : IWorkspaceManager
         }
     }
 
-    public void ApplyRemove(string workspaceId, FractionalPosition position)
+    public void ApplyRemove(string workspaceId, FractionalPosition position, Guid charClientId)
     {
         var doc = GetOrAddWorkspace(workspaceId);
         lock (doc)
         {
-            doc.Remove(position);
+            doc.Remove(position, charClientId);
         }
     }
         

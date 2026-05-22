@@ -1,5 +1,6 @@
 using MultiPExec.Api.Hubs;
 using MultiPExec.Application.Interfaces;
+using MultiPExec.Infrastructure.Execution;
 using MultiPExec.Infrastructure.State;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,7 @@ builder.Services.AddSignalR(options =>
 });
 
 builder.Services.AddSingleton<IWorkspaceManager, WorkspaceManager>();
+builder.Services.AddSingleton<Executor>();
 
 builder.Services.AddCors(options =>
 {

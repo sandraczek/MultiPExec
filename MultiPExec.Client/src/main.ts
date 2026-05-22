@@ -5,6 +5,18 @@ import { PositionAllocator } from "./PositionAllocator";
 type CharNode = { value: string, path: number[], clientId: string };
 let localDoc: CharNode[] = [];
 
+function comparePaths(path1: number[], path2: number[]): number {
+    const minLen = Math.min(path1.length, path2.length);
+    
+    for (let i = 0; i < minLen; i++) {
+        if (path1[i] !== path2[i]) {
+            return path1[i] - path2[i];
+        }
+    }
+
+    return path1.length - path2.length;
+}
+
 const editorDom = document.getElementById("editor") as HTMLTextAreaElement;
 const statusDom = document.getElementById("status") as HTMLDivElement;
 
@@ -19,7 +31,7 @@ client.onDocumentLoaded = (nodes: CharNodeDto[]) => {
         clientId: n.clientId
     }));
     
-    localDoc.sort((a, b) => a.path[0] - b.path[0]);
+    localDoc.sort((a, b) => comparePaths(a.path,b.path));
     
     editorDom.value = localDoc.map(n => n.value).join('');
 
@@ -34,7 +46,7 @@ client.onCharacterInserted = (value, path, authorId) => {
 
     // 2. Dodajemy nowy znak od kolegi i sortujemy dokument
     localDoc.push({ value, path, clientId: authorId });
-    localDoc.sort((a, b) => a.path[0] - b.path[0]);
+    localDoc.sort((a, b) => comparePaths(a.path,b.path));
 
     // 3. Nadpisujemy tekst w przeglądarce
     editorDom.value = localDoc.map(n => n.value).join('');
@@ -43,6 +55,25 @@ client.onCharacterInserted = (value, path, authorId) => {
     // Uwaga: Jeśli nowa litera wpadła PRZED naszym kursorem, musimy go przesunąć o 1 w prawo!
     // Dla uproszczenia w PoC po prostu przywracamy go tam, gdzie był.
     editorDom.setSelectionRange(currentCursor, currentCursor);
+};
+client.onCharacterRemoved = (path, charClientId) => {
+    // Porównywanie tablic po wartości nie działa w TS, musimy je złączyć w stringa (np. "100000,50000")
+    const targetPathString = path.join(',');
+    const index = localDoc.findIndex(
+        n => n.path.join(',') === targetPathString && n.clientId === charClientId);
+
+    if (index !== -1) {
+        const currentCursor = editorDom.selectionStart;
+
+        localDoc.splice(index, 1);
+        editorDom.value = localDoc.map(n => n.value).join('');
+
+        let newCursor = currentCursor;
+        if (index < currentCursor) {
+            newCursor--;
+        }
+        editorDom.setSelectionRange(newCursor, newCursor);
+    }
 };
 
 // Krok 3: Wysyłanie naszych intencji (przechwytywanie klawiatury z uwzględnieniem kursora)
@@ -74,6 +105,19 @@ editorDom.addEventListener("input", async (e: Event) => {
 
         // Wysyłamy asynchronicznie pakiet na serwer
         await client.insert(char, newPath);
+    }
+    if (inputEvent.inputType === "deleteContentBackward" || inputEvent.inputType === "deleteContentForward") {
+
+        const indexToRemove = editorDom.selectionStart;
+
+        if (indexToRemove >= 0 && indexToRemove < localDoc.length) {
+
+            const nodeToRemove = localDoc[indexToRemove];
+            
+            localDoc.splice(indexToRemove, 1);
+            
+            await client.remove(nodeToRemove.path, nodeToRemove.clientId);
+        }
     }
 });
 

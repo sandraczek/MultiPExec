@@ -24,6 +24,10 @@ const WORKSPACE_ID = "test-room";
 const CLIENT_ID = crypto.randomUUID();
 const client = new EditorClient(WORKSPACE_ID, CLIENT_ID);
 
+const btnRun = document.getElementById("btn-run") as HTMLButtonElement;
+const languageSelect = document.getElementById("language-select") as HTMLSelectElement;
+const consoleOutput = document.getElementById("console-output") as HTMLPreElement;
+
 client.onDocumentLoaded = (nodes: CharNodeDto[]) => {
     localDoc = nodes.map(n => ({
         value: n.value,
@@ -36,28 +40,21 @@ client.onDocumentLoaded = (nodes: CharNodeDto[]) => {
     editorDom.value = localDoc.map(n => n.value).join('');
 
     editorDom.disabled = false;
+    btnRun.disabled = false;
     statusDom.innerText = `Status: Connected (Room: ${WORKSPACE_ID} | Client: ${CLIENT_ID.split('-')[0]})`;
 };
 
-// Krok 2: Odbieranie pakietów od Innych użytkowników
 client.onCharacterInserted = (value, path, authorId) => {
-    // 1. Zapisujemy pozycję kursora lokalnego użytkownika
     const currentCursor = editorDom.selectionStart;
 
-    // 2. Dodajemy nowy znak od kolegi i sortujemy dokument
     localDoc.push({ value, path, clientId: authorId });
     localDoc.sort((a, b) => comparePaths(a.path,b.path));
 
-    // 3. Nadpisujemy tekst w przeglądarce
     editorDom.value = localDoc.map(n => n.value).join('');
 
-    // 4. Przywracamy kursor. 
-    // Uwaga: Jeśli nowa litera wpadła PRZED naszym kursorem, musimy go przesunąć o 1 w prawo!
-    // Dla uproszczenia w PoC po prostu przywracamy go tam, gdzie był.
     editorDom.setSelectionRange(currentCursor, currentCursor);
 };
 client.onCharacterRemoved = (path, charClientId) => {
-    // Porównywanie tablic po wartości nie działa w TS, musimy je złączyć w stringa (np. "100000,50000")
     const targetPathString = path.join(',');
     const index = localDoc.findIndex(
         n => n.path.join(',') === targetPathString && n.clientId === charClientId);
@@ -76,34 +73,56 @@ client.onCharacterRemoved = (path, charClientId) => {
     }
 };
 
-// Krok 3: Wysyłanie naszych intencji (przechwytywanie klawiatury z uwzględnieniem kursora)
+client.onSelectionRemoved = (nodesToRemove) => {
+    const currentCursor = editorDom.selectionStart;
+    let cursorOffset = 0;
+    
+    for (const targetNode of nodesToRemove) {
+        const targetPathString = targetNode.path.join(',');
+        const index = localDoc.findIndex(n =>
+            n.path.join(',') === targetPathString && n.clientId === targetNode.clientId
+        );
+
+        if (index !== -1) {
+            localDoc.splice(index, 1);
+            
+            if (index < currentCursor) {
+                cursorOffset--;
+            }
+        }
+    }
+    
+    editorDom.value = localDoc.map(n => n.value).join('');
+    
+    const newCursor = currentCursor + cursorOffset;
+    editorDom.setSelectionRange(newCursor, newCursor);
+};
+
+client.onCodeExecuted = (output: string) => {
+    btnRun.disabled = false;
+    consoleOutput.innerText = output;
+};
+
 editorDom.addEventListener("input", async (e: Event) => {
     const inputEvent = e as InputEvent;
 
-    // Obsługujemy na razie tylko pojedyncze uderzenia w klawisze (bez wklejania całych bloków tekstu)
     if (inputEvent.inputType === "insertText" && inputEvent.data) {
         const char = inputEvent.data;
 
-        // Gdzie znajduje się kursor PO wpisaniu litery?
         const cursorPos = editorDom.selectionStart;
 
-        // Indeks nowej litery w czystym tekście to pozycja kursora minus 1
         const insertIndex = cursorPos - 1;
 
-        // Szukamy węzłów "sąsiadów" w naszej strukturze CRDT (jeszcze sprzed aktualizacji)
         const leftNode = insertIndex > 0 ? localDoc[insertIndex - 1] : null;
         const rightNode = insertIndex < localDoc.length ? localDoc[insertIndex] : null;
 
         const leftPath = leftNode ? leftNode.path : null;
         const rightPath = rightNode ? rightNode.path : null;
 
-        // Uruchamiamy nasz silnik matematyczny!
         const newPath = PositionAllocator.allocateBetween(leftPath, rightPath);
 
-        // Aktualizujemy lokalny stan - używamy splice, żeby wcisnąć element w środek tablicy
         localDoc.splice(insertIndex, 0, { value: char, path: newPath, clientId: CLIENT_ID });
 
-        // Wysyłamy asynchronicznie pakiet na serwer
         await client.insert(char, newPath);
     }
     if (inputEvent.inputType === "deleteContentBackward" || inputEvent.inputType === "deleteContentForward") {
@@ -119,6 +138,33 @@ editorDom.addEventListener("input", async (e: Event) => {
             await client.remove(nodeToRemove.path, nodeToRemove.clientId);
         }
     }
+    if (inputEvent.inputType.startsWith("delete")) {
+
+        const currentLength = editorDom.value.length;
+        const deletedCount = localDoc.length - currentLength;
+
+        if (deletedCount > 0) {
+            const startIndex = editorDom.selectionStart;
+            
+            const removedNodes = localDoc.splice(startIndex, deletedCount);
+            
+            const identifiers = removedNodes.map(n => ({
+                path: n.path,
+                clientId: n.clientId
+            }));
+
+            await client.removeBulk(identifiers);
+        }
+    }
+});
+
+btnRun.addEventListener("click", async () => {
+    btnRun.disabled = true;
+    consoleOutput.innerText = "Executing...";
+
+    const selectedLanguage = languageSelect.value as CodeLanguage;
+
+    await client.executeCode(selectedLanguage);
 });
 
 async function init() {

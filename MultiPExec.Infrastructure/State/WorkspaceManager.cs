@@ -31,7 +31,7 @@ public class WorkspaceManager : IWorkspaceManager
             doc.Remove(position, charClientId);
         }
     }
-        
+
     public IReadOnlyList<CharNode> GetRawState(string workspaceId)
     {
         var doc = GetOrAddWorkspace(workspaceId);

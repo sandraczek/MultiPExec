@@ -6,16 +6,27 @@ export type CharNodeDto = {
     clientId: string;
 };
 
+export type NodeIdentifierDto = {
+    path: number[],
+    clientId: string
+};
+
+export enum CodeLanguage{
+    Python = "Python",
+    CSharp = "CSharp"
+}
+
 export class EditorClient {
     private connection: HubConnection;
 
     public onDocumentLoaded?: (nodes: CharNodeDto[]) => void;
     public onCharacterInserted?: (value: string, path: number[], authorId: string) => void;
     public onCharacterRemoved?: (path: number[], charClientId: string) => void;
+    public onSelectionRemoved?: (nodes: NodeIdentifierDto[]) => void;
+    public onCodeExecuted?: (output: string) => void;
 
     constructor(private workspaceId: string, private clientId: string) {
-
-        // Zczytujemy adres z .env lub używamy domyślnego
+        
         const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
         this.connection = new HubConnectionBuilder()
@@ -31,6 +42,8 @@ export class EditorClient {
         this.connection.on("DocumentLoaded", (nodes: CharNodeDto[]) => this.onDocumentLoaded?.(nodes));
         this.connection.on("CharacterInserted", (val, path, authorId) => this.onCharacterInserted?.(val, path, authorId));
         this.connection.on("CharacterRemoved", (path, charClientId) => this.onCharacterRemoved?.(path, charClientId));
+        this.connection.on("CodeExecuted", (output: string) => this.onCodeExecuted?.(output));
+        this.connection.on("SelectionRemoved", (nodes: NodeIdentifierDto[]) => this.onSelectionRemoved?.(nodes));
     }
 
     public async connect() {
@@ -44,5 +57,15 @@ export class EditorClient {
 
     public async remove(path: number[], charClientId: guid) {
         await this.connection.invoke("RemoveCharacter", this.workspaceId, path, charClientId);
+    }
+
+    public async removeBulk(nodes: NodeIdentifierDto[]) {
+        if (nodes.length > 0) {
+            await this.connection.invoke("RemoveSelection", this.workspaceId, nodes);
+        }
+    }
+
+    public async executeCode(language: CodeLanguage) {
+        await this.connection.invoke("ExecuteWorkspace", this.workspaceId, language);
     }
 }

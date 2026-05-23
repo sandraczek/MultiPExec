@@ -11,6 +11,12 @@ builder.Services.AddOpenApi();
 builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = true; 
+})
+.AddJsonProtocol(options =>
+{
+    options.PayloadSerializerOptions.Converters.Add(
+        new System.Text.Json.Serialization.JsonStringEnumConverter()
+    );
 });
 
 builder.Services.AddSingleton<IWorkspaceManager, WorkspaceManager>();

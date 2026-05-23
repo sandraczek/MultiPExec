@@ -25,8 +25,6 @@ public class CollaborativeDocument(Guid documentId)
         var dummyNode = new CharNode('\0', position, charClientId);
         
         var index = _content.BinarySearch(dummyNode, new CharNodeComparer());
-
-        Console.WriteLine(index);
         
         if (index >= 0)
         {

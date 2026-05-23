@@ -13,6 +13,7 @@
             height: 100vh;
             box-sizing: border-box;
         }
+
         #editor {
             width: 100%;
             height: 80vh;
@@ -25,6 +26,7 @@
             outline: none;
             border-radius: 4px;
         }
+
         .status {
             margin-bottom: 15px;
             color: #4af626;
@@ -33,8 +35,22 @@
     </style>
 </head>
 <body>
-<div class="status" id="status">Status: Disconnected</div>
-<textarea id="editor" disabled placeholder="Waiting for backend signal..."></textarea>
+<div class="header">
+    <div class="status" id="status">Status: Disconnected</div>
+    
+    <select id="language-select">
+        <option value="Python">Python 3</option>
+        <option value="CSharp">C# (.NET 10.0)</option>
+    </select>
+
+    <button id="btn-run" disabled>Run Code</button>
+</div>
+
+<textarea id="editor" disabled placeholder="Write your code here..."></textarea>
+
+<div class="console-label">Terminal Output</div>
+<pre id="console-output">-</pre>
+
 <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

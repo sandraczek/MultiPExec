@@ -22,7 +22,7 @@ export class EditorClient {
     public onSelectionRemoved?: (nodes: NodeIdentifierDto[]) => void;
     public onCodeExecuted?: (output: string) => void;
 
-    constructor(private workspaceId: string, private clientId: string) {
+    constructor(workspaceId: string, clientId: string) {
         
         const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 

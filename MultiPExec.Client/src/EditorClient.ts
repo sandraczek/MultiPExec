@@ -11,10 +11,7 @@ export type NodeIdentifierDto = {
     clientId: string
 };
 
-export enum CodeLanguage{
-    Python = "Python",
-    CSharp = "CSharp"
-}
+export type CodeLanguage = "Python" | "CSharp";
 
 export class EditorClient {
     private connection: HubConnection;
@@ -55,7 +52,7 @@ export class EditorClient {
         await this.connection.invoke("InsertCharacter", this.workspaceId, value, path, this.clientId);
     }
 
-    public async remove(path: number[], charClientId: guid) {
+    public async remove(path: number[], charClientId: string) {
         await this.connection.invoke("RemoveCharacter", this.workspaceId, path, charClientId);
     }
 

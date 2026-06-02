@@ -1,6 +1,7 @@
 import { EditorClient } from "./EditorClient";
 import type { CharNodeDto } from "./EditorClient";
 import { PositionAllocator } from "./PositionAllocator";
+import type { CodeLanguage } from './EditorClient';
 
 type CharNode = { value: string, path: number[], clientId: string };
 let localDoc: CharNode[] = [];
@@ -41,7 +42,7 @@ client.onDocumentLoaded = (nodes: CharNodeDto[]) => {
 
     editorDom.disabled = false;
     btnRun.disabled = false;
-    statusDom.innerText = `Status: Connected (Room: ${WORKSPACE_ID} | Client: ${CLIENT_ID.split('-')[0]})`;
+    statusDom.innerText = `Status: Connected (Room: ${WORKSPACE_ID} | Client: ${CLIENT_ID.split('-')[0]})\n\n Open a second window and have fun!`;
 };
 
 client.onCharacterInserted = (value, path, authorId) => {
@@ -106,8 +107,11 @@ client.onCodeExecuted = (output: string) => {
 editorDom.addEventListener("input", async (e: Event) => {
     const inputEvent = e as InputEvent;
 
-    if (inputEvent.inputType === "insertText" && inputEvent.data) {
-        const char = inputEvent.data;
+    if (inputEvent.inputType === "insertText" || inputEvent.inputType === "insertLineBreak") {
+
+        const charToInsert = inputEvent.inputType === "insertLineBreak" ? '\n' : inputEvent.data;
+
+        if (!charToInsert) return;
 
         const cursorPos = editorDom.selectionStart;
 
@@ -121,9 +125,9 @@ editorDom.addEventListener("input", async (e: Event) => {
 
         const newPath = PositionAllocator.allocateBetween(leftPath, rightPath);
 
-        localDoc.splice(insertIndex, 0, { value: char, path: newPath, clientId: CLIENT_ID });
+        localDoc.splice(insertIndex, 0, {value: charToInsert, path: newPath, clientId: CLIENT_ID});
 
-        await client.insert(char, newPath);
+        await client.insert(charToInsert, newPath);
     }
     if (inputEvent.inputType === "deleteContentBackward" || inputEvent.inputType === "deleteContentForward") {
 
@@ -155,6 +159,37 @@ editorDom.addEventListener("input", async (e: Event) => {
 
             await client.removeBulk(identifiers);
         }
+    }
+});
+editorDom.addEventListener("keydown", async (e: KeyboardEvent) => {
+    if (e.key === "Tab") {
+        
+        e.preventDefault();
+
+        const charToInsert = '\t';
+        
+        const cursorPos = editorDom.selectionStart;
+        const insertIndex = cursorPos;
+
+        const leftNode = insertIndex > 0 ? localDoc[insertIndex - 1] : null;
+        const rightNode = insertIndex < localDoc.length ? localDoc[insertIndex] : null;
+
+        const leftPath = leftNode ? leftNode.path : null;
+        const rightPath = rightNode ? rightNode.path : null;
+        
+        const newPath = PositionAllocator.allocateBetween(leftPath, rightPath);
+        
+        localDoc.splice(insertIndex, 0, {
+            value: charToInsert,
+            path: newPath,
+            clientId: CLIENT_ID
+        });
+        
+        editorDom.value = localDoc.map(n => n.value).join('');
+        
+        editorDom.setSelectionRange(cursorPos + 1, cursorPos + 1);
+        
+        await client.insert(charToInsert, newPath);
     }
 });
 

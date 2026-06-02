@@ -1,4 +1,5 @@
 import { HubConnection, HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
+import { environment } from './environments/environment';
 
 export type CharNodeDto = {
     value: string;
@@ -28,7 +29,7 @@ export class EditorClient {
         this.workspaceId = workspaceId;
         this.clientId = clientId;
         
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+        const baseUrl = environment.apiUrl;
 
         this.connection = new HubConnectionBuilder()
             .withUrl(`${baseUrl}/editor`)

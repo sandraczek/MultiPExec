@@ -15,6 +15,8 @@ export type CodeLanguage = "Python" | "CSharp";
 
 export class EditorClient {
     private connection: HubConnection;
+    private workspaceId: string;
+    private clientId: string;
 
     public onDocumentLoaded?: (nodes: CharNodeDto[]) => void;
     public onCharacterInserted?: (value: string, path: number[], authorId: string) => void;
@@ -23,6 +25,8 @@ export class EditorClient {
     public onCodeExecuted?: (output: string) => void;
 
     constructor(workspaceId: string, clientId: string) {
+        this.workspaceId = workspaceId;
+        this.clientId = clientId;
         
         const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
